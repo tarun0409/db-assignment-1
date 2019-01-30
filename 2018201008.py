@@ -101,12 +101,26 @@ def satisfy_operator(optr, opnd1, opnd2):
 
 query_str = sys.argv[1]
 query_obj = parse_query(query_str)
+select_cols = query_obj['columns']
 metadata = parse_metadata('metadata.txt')
 qt = query_obj['tables']
 if len(qt)==1:
     table_name = qt[0]
     attr_list = [table_name+'.'+x for x in metadata[table_name]]
-    print ",".join(attr_list)
+    if '*' in select_cols:
+        select_cols = attr_list[:]
+        select_indices = range(0,len(metadata[table_name]))
+    else:
+        select_cols = [table_name+'.'+x for x in select_cols]
+    select_indices = list()
+    mod_attr_list = list()
+    for i in range(0,len(attr_list)):
+        if attr_list[i] in select_cols:
+            mod_attr_list.append(attr_list[i])
+            select_indices.append(i)
+
+    print ",".join(mod_attr_list)
+    
     table_file = table_name+'.csv'
     condition = None
     cond_ops = None
@@ -121,8 +135,14 @@ if len(qt)==1:
             
     with open(table_file) as t:
         for row_string in t:
+            row_split = row_string.split(',')
+            mod_row_split = list()
+            for i in range(0,len(row_split)):
+                if i in select_indices:
+                    mod_row_split.append(row_split[i].strip())
+            mod_row_str = ",".join(mod_row_split)
             if condition is None:
-                print row_string
+                print mod_row_str
             else:
                 row_split = row_string.split(',')
                 row_approved = True
@@ -147,7 +167,7 @@ if len(qt)==1:
                 elif not and_op and satisfied_conditions<=0:
                     row_approved = False
                 if row_approved:
-                    print row_string
+                    print mod_row_str
 
 else:
     table_name1 = qt[0]
