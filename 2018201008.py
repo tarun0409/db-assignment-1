@@ -63,7 +63,6 @@ def parse_query(query):
     return query_dict
 
 def parse_metadata(file_path):
-    # table_list = list()
     table = dict()
     line_one = False
     curr_table_name = None
@@ -71,7 +70,6 @@ def parse_metadata(file_path):
         for line in f:
             token = line.strip()
             if token == '<begin_table>':
-                # table = dict()
                 line_one = True
             elif token == '<end_table>':
                 continue
@@ -102,7 +100,8 @@ metadata = parse_metadata('metadata.txt')
 qt = query_obj['tables']
 if len(qt)==1:
     table_name = qt[0]
-    print ",".join(metadata[table_name])
+    attr_list = [table_name+'.'+x for x in metadata[table_name]]
+    print ",".join(attr_list)
     table_file = table_name+'.csv'
     condition = None
     cond_ops = None
@@ -138,7 +137,9 @@ if len(qt)==1:
                                 break
                     if not row_approved:
                         break
-                if satisfied_conditions != total_conditions:
+                if and_op and satisfied_conditions != total_conditions:
+                    row_approved = False
+                elif not and_op and satisfied_conditions<=0:
                     row_approved = False
                 if row_approved:
                     print row_string
