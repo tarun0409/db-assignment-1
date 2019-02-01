@@ -72,6 +72,11 @@ def parse_metadata(file_path):
     line_one = False
     curr_table_name = None
     with open(file_path) as f:
+        if not f:
+            print
+            print 'Metadata file not found!'
+            print
+            sys.exit()
         for line in f:
             token = line.strip()
             if token == '<begin_table>':
@@ -106,12 +111,32 @@ if query_str[len(query_str)-1] != ';':
     print
     sys.exit()
 query_obj = parse_query(query_str)
+if 'columns' not in query_obj or not query_obj['columns']:
+    print
+    print 'Please specify the columns to project!'
+    print
+    sys.exit()
+if 'tables' not in query_obj or not query_obj['tables']:
+    print
+    print 'Please specify the tables to display!'
+    print
+    sys.exit()
 select_cols = query_obj['columns']
 metadata = parse_metadata('metadata.txt')
 qt = query_obj['tables']
+if len(qt) > 2:
+    print
+    print 'Invalid syntax: Only two tables supported in one query!'
+    print
+    sys.exit()
 if len(qt)==1:
     table_name = qt[0]
     attr_list = list()
+    if table_name not in metadata:
+        print
+        print table_name+' definition does not exist in metadata!'
+        print
+        sys.exit()
     for x in metadata[table_name]:
         if '.' not in x:
             attr_list.append(table_name+'.'+x)
@@ -149,6 +174,11 @@ if len(qt)==1:
             and_op = True
             
     with open(table_file) as t:
+        if not t:
+            print
+            print table_file+' does not exist!'
+            print
+            sys.exit()
         for row_string in t:
             row_split = row_string.split(',')
             mod_row_split = list()
@@ -185,12 +215,28 @@ if len(qt)==1:
                     print mod_row_str
 
 else:
+
+    condition = None
+    cond_ops = None
+    if 'condition' in query_obj:
+        condition = query_obj['condition']
+        cond_ops = condition['operands']
     table_name1 = qt[0]
     table_name2 = qt[1]
     table_file1 = table_name1+'.csv'
     table_file2 = table_name2+'.csv'
     attr_list1 = list()
     attr_list2 = list()
+    if table_name1 not in metadata:
+        print
+        print table_name1+' definition does not exist in metadata'
+        print
+        sys.exit()
+    if table_name2 not in metadata:
+        print
+        print table_name2+' definition does not exist in metadata'
+        print
+        sys.exit()
     for x in metadata[table_name1]:
         if '.' not in x:
             attr_list1.append(table_name1+'.'+x)
@@ -232,14 +278,16 @@ else:
         if attr_list[i] in select_cols:
             select_indices.append(i)
             mod_attr_list.append(attr_list[i])
+
+    if cond_ops is not None:
+        try_val = cond_ops[0]['operands'][1]
+        try:
+            temp_val = int(try_val)
+        except ValueError:
+            if try_val in mod_attr_list:
+                mod_attr_list.remove(try_val)
     print ",".join(mod_attr_list)
          
-
-    condition = None
-    cond_ops = None
-    if 'condition' in query_obj:
-        condition = query_obj['condition']
-        cond_ops = condition['operands']
     if cond_ops is not None:
         try_val = cond_ops[0]['operands'][1]
         try:
@@ -251,8 +299,18 @@ else:
                     and_op = True
     
             with open(table_file1) as t1:
+                if not t1:
+                    print
+                    print table_file1+' does not exist!'
+                    print
+                    sys.exit()
                 for row_string1 in t1:
                     with open(table_file2) as t2:
+                        if not t2:
+                            print
+                            print table_file2+' does not exist!'
+                            print
+                            sys.exit()
                         for row_string2 in t2:
                             row_string = row_string1.strip()+','+row_string2.strip()
                             val_list = row_string.split(',')
@@ -304,7 +362,6 @@ else:
                     col2_index = i
                 else:
                     mod_attr_list.append(attr_list[i])
-            print ",".join(mod_attr_list)
             with open(table_file1) as t1:
                 for row_string1 in t1:
                     with open(table_file2) as t2:
