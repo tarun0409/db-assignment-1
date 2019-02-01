@@ -99,19 +99,34 @@ def satisfy_operator(optr, opnd1, opnd2):
         return opnd1 <= opnd2
     return False
 
-query_str = sys.argv[1]
+query_str = sys.argv[1].strip()
+if query_str[len(query_str)-1] != ';':
+    print
+    print 'Syntax Error: Expected ; in the end of query!'
+    print
+    sys.exit()
 query_obj = parse_query(query_str)
 select_cols = query_obj['columns']
 metadata = parse_metadata('metadata.txt')
 qt = query_obj['tables']
 if len(qt)==1:
     table_name = qt[0]
-    attr_list = [table_name+'.'+x for x in metadata[table_name]]
+    attr_list = list()
+    for x in metadata[table_name]:
+        if '.' not in x:
+            attr_list.append(table_name+'.'+x)
+        else:
+            attr_list.append(x)
     if '*' in select_cols:
         select_cols = attr_list[:]
-        select_indices = range(0,len(metadata[table_name]))
     else:
-        select_cols = [table_name+'.'+x for x in select_cols]
+        temp_cols = list()
+        for x in select_cols:
+            if '.' not in x:
+                temp_cols.append(table_name+'.'+x)
+            else:
+                temp_cols.append(x)
+        select_cols = temp_cols
     select_indices = list()
     mod_attr_list = list()
     for i in range(0,len(attr_list)):
@@ -174,14 +189,52 @@ else:
     table_name2 = qt[1]
     table_file1 = table_name1+'.csv'
     table_file2 = table_name2+'.csv'
-    attr_list1 = [table_name1+'.'+x for x in metadata[table_name1]]
-    attr_list2 = [table_name2+'.'+x for x in metadata[table_name2]]
+    attr_list1 = list()
+    attr_list2 = list()
+    for x in metadata[table_name1]:
+        if '.' not in x:
+            attr_list1.append(table_name1+'.'+x)
+        else:
+            attr_list1.append(x)
+    for x in metadata[table_name2]:
+        if '.' not in x:
+            attr_list2.append(table_name2+'.'+x)
+        else:
+            attr_list2.append(x)
+
     attr_list = list()
     for attr in attr_list1:
         attr_list.append(attr)
     for attr in attr_list2:
         attr_list.append(attr)
-    #print attr_list
+
+
+    if '*' in select_cols:
+        select_cols = attr_list[:]
+    else:
+        temp_cols = list()
+        for x in select_cols:
+            if '.' not in x:
+                if x in metadata[table_name1]:
+                    temp_cols.append(table_name1+'.'+x)
+                elif x in metadata[table_name2]:
+                    temp_cols.append(table_name2+'.'+x)
+                else:
+                    print
+                    print x+' Column does not exist'
+                    print
+            else:
+                temp_cols.append(x)
+        select_cols = temp_cols
+    select_indices = list()
+    mod_attr_list = list()
+    for i in range(0,len(attr_list)):
+        if attr_list[i] in select_cols:
+            select_indices.append(i)
+            mod_attr_list.append(attr_list[i])
+    print ",".join(mod_attr_list)
+         
+
     condition = None
     cond_ops = None
     if 'condition' in query_obj:
@@ -191,8 +244,6 @@ else:
         try_val = cond_ops[0]['operands'][1]
         try:
             temp_val = int(try_val)
-            #numerical where clause
-            print ",".join(attr_list)
             and_op = False
             if 'operator' in condition:
                 log_op = condition['operator']
@@ -229,7 +280,14 @@ else:
                             if not and_op and satisfied_conditions<=0:
                                 row_approved = False
                             if row_approved:
-                                print row_string
+                                # print row_string
+                                row_string = row_string1.strip()+','+row_string2.strip()
+                                row_list = row_string.split(',')
+                                mod_row_list = list()
+                                for i in range(0,len(row_list)):
+                                    if i in select_indices:
+                                        mod_row_list.append(row_list[i])
+                                print ",".join(mod_row_list)
             
         except ValueError:
             #join
@@ -255,23 +313,32 @@ else:
                             val_list = row_string.split(',')
                             val1 = int(val_list[col1_index])
                             val2 = int(val_list[col2_index])
+                            omit_index = -1
+                            if col1_index in select_indices and col2_index not in select_indices:
+                                omit_index = col2_index
+                            elif col1_index not in select_indices and col2_index in select_indices:
+                                omit_index = col1_index
                             op = cond_ops[0]['operator']
                             if satisfy_operator(op, val1, val2):
                                 mod_val_list = list()
                                 for i in range(0,len(val_list)):
                                     if i == col2_index:
                                         continue
-                                    mod_val_list.append(val_list[i])
+                                    if i in select_indices:
+                                        mod_val_list.append(val_list[i])
                                 print ",".join(mod_val_list)
 
 
     else:
-        print ",".join(attr_list)
         with open(table_file1) as t1:
             for row_string1 in t1:
                 with open(table_file2) as t2:
                     for row_string2 in t2:
                         row_string = row_string1.strip()+','+row_string2.strip()
-                        print row_string
-        #display everything
+                        row_list = row_string.split(',')
+                        mod_row_list = list()
+                        for i in range(0,len(row_list)):
+                            if i in select_indices:
+                                mod_row_list.append(row_list[i])
+                        print ",".join(mod_row_list)
         
